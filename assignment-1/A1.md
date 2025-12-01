@@ -1,0 +1,111 @@
+
+# Assignment 1: Scheduling, threads, and synchronization
+
+In this assignment, you need to create your CPU scheduler for processes. To do that, you will need to manage and synchronize the execution of threads.
+
+## Problem statement: Preemptive Priority Scheduling
+
+You will implement a CPU scheduler that utilizes **preemptive priority-based scheduling**.
+
+The processes handled by this scheduler have three parameters:
+
+1.  **Name:** A string identifier (`String processName`).
+2.  **Priority:** One of three defined priority levels (`int priority`): **0 (high), 1 (medium) , or 2 (low)**.
+3.  **Duration:** The required CPU burst duration (`double cpuBurstDuration`).
+
+
+### Scheduling Characteristics
+
+*   **Preemption:** Processes with a higher priority than the currently executing process can **preempt** the running process.
+*   **Equal Priority Processes:** Processes that share the same priority level execute using the **First-In, First-Out (FIFO)** strategy.
+*   When a process is preempted by another with higher priority, once the higher-priority processes finish, the preempted process resumes execution if it holds the highest priority among remaining tasks, effectively being treated as the first (FIFO) process in its priority group to receive the CPU to execute its remaining CPU burst (see the example later, it can clarify the expectations on the scheduler behavior). 
+*   The overall scheduler design is a variation of Multilevel Queue Scheduling.
+
+### Process Execution Flow
+
+The user sends a process to the scheduler as `newProcess(String processName, int priority, double cpuBurstDuration)`.
+
+When the scheduler receives a new process invocation, it places the process information into a queue/set of processes and immediately returns control to the user to invoke more `newProcess` calls if desired.
+
+A separate thread (e.g., `CPUthread`) gets the appropriate process from the queue/set and executes it for its CPU burst duration. We will “simulate” the execution of a process during `cpuBurstDuration` seconds using the method `Thread.sleep((long) cpuBurstDuration*1000)`.
+
+Since this scheduler is preemptive, it must be able to halt the execution of a running process if a higher-priority process arrives in the system.
+
+There is a single CPU that executes processes.
+
+## Process Execution Reporting
+
+There is a reporter that keeps records of what is going on in the CPU. The report contains information for all the processes that have successfully finished their execution in the CPU. Each record stored by the reporter is an object of the `ProcessInformation` class.
+
+The `ProcessInformation` class structure contains:
+
+*   `processName`: String
+*   `cpuBurstDuration`: double
+*   `arrivalTime`: double
+*   `endTime`: double
+*   `cpuScheduledTime`: double
+
+We provide the class for the reporter, called `ReporterIOImpl.java`. **You must not modify that class**.
+
+At any point in time, the Scheduler can be asked about the history of its execution. The operation `getProcessesReport()` returns a `List<ProcessInformation>` object. That list must contain the processes that have already finished their execution, in the **strict order** of their finished executions (i.e., the first object in the list corresponds to the process that finished its CPU burst first).
+
+
+
+### Implementation and Submission Constraints
+
+You have to write all the necessary new classes for this assignment inside the `se.lnu.os.ht25.a1.required` package.
+
+*   Any code written outside of the `se.lnu.os.ht25.a1.required` package will be ignored when evaluating the assignment.
+*   Do not move any of the existing classes/interfaces provided in the `provided` package to the `required` package.
+
+
+Submit your work by creating a merge request targeting the `lnu/submit` branch by December 12 23:59.
+Make sure your merge request includes all required files and that your code runs correctly before submitting.
+
+
+**Hints**
+* Hint 1: Use the `interrupt()` method of a thread to cause an InterruptedException if the thread is in the `sleep()` operation. That is very useful for the “preemption” mechanism of the scheduler, because it allows stopping a `sleep()` at any time. Then, handle what the scheduler should do with the preempted process inside the catch part of the try/catch.
+
+* Hint2: You will need to store somewhere the remaining time of the CPU burst of a process that has been preempted. I recommend extending the class ProcessInformation with a new attribute called “remainingCPUburst” that is updated every time the process is preempted.
+
+**Other considerations:**
+
+The use of thread-safe classes is **not allowed** (for instance, classes that implement `ConcurrentLinkedQueue`, `BlockingQueue`, `BlockingDeque`, etc., in Java). If you require a queue, you may use the `ArrayDequeue` class, and then you must implement the blocking and thread safety properties yourself, drawing upon examples like the producer-consumer problems discussed in the sources or reference book.
+
+You must fill the `names.txt` file with the student IDs of the participants.
+
+---
+### EXAMPLE
+
+Consider a set of processes with name, priority, and CPU Burst Duration:
+
+| Process Name | Arrival Time | CPU Burst Duration | Priority |
+| :---: | :---: | :---: | :---: |
+| P1 | 0 | 5 | 1 |
+| P2 | 1 | 2 | 2 |
+| P3 | 2 | 1 | 1 |
+| P4 | 3 | 2 | 0 |
+
+
+In the code, this should be executed as
+```
+Reporter reporter = ReporterIOImpl.create();
+Scheduler scheduler = PrioritySchedulerImpl.createInstance(reporter)
+scheduler.newProcess("P1",1, 5.0);
+Thread.sleep(1000); //Advance time to Arrival time 1
+scheduler.newProcess("P2",2, 2.0);
+Thread.sleep(1000); //Advance time to Arrival time 2
+scheduler.newProcess("P3",1, 1.0);
+Thread.sleep(1000); //Advance time to Arrival time 3
+scheduler.newProcess("P4",0, 2.0);
+```
+
+
+The result after waiting the necessary time to finish the processes and calling the `reporter.getProcessesReport()`should indicate something like:
+* P4 arrived in the system at time 3. It entered the CPU for the first time at time 3. It finished at time 5.
+* P1 arrived in the system at time 0. It entered the CPU for the first time at time 0. It finished at time 7.
+* P3 arrived at time 2. It entered the CPU for the first time at time 7. It finished at time 8.
+* P2 arrived in the system at time 1. It entered the CPU for the first time at time 8. It finished at time 10.
+
+
+There might be a few milliseconds of difference (for example, 8.05 instead of 8). That is acceptable.
